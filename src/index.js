@@ -1,19 +1,72 @@
 import { GraphQLServer } from 'graphql-yoga'
 
+const users = [
+    {
+        id: '1',
+        name: 'Ahmad Khoja',
+        email: 'ahmadK@Ciatek.net',
+        age: null,
+        posts: '1',
+        comments: '1'
+    },
+    {
+        id: '2',
+        name: 'Mohi',
+        email: 'ahmadT@Ciatek.net',
+        age: 22,
+        posts: '2',
+        comments:'2'
+    }
+]
+const posts = [
+    {
+        id: 'post1',
+        title: 'First Post',
+        body: 'Potato is sweet',
+        published: false,
+        author: '1',
+        comments: 'post1'
+    },
+    {
+        id: 'post2',
+        title: 'Second Post',
+        body: 'Batata is sweet',
+        published: true,
+        author: '2',
+        comments: 'post2'
+    }
+]
+
+const comments = [
+    {
+        id: '1',
+        text: 'Thanks Teacher',
+        author: '1',
+        post:'post1'
+    },
+    {
+        id: '2',
+        text: 'Awesome Course',
+        author: '1',
+        post:'post1'
+    },
+    {
+        id: '3',
+        text: 'The teacher talks alot',
+        author: '2',
+        post:'post2'
+
+    }
+]
+
 // Type Definitions (schema)
 const typeDefs = `
     type Query {
-        add(a: Float, b: Float): Float!
-        addAll(numbers:[Float!]):Float!
-        greeting(name: String): String!
-        id: ID!
-        name: String!
-        age: Int!
-        employed: Boolean!
-        gpa: Float
+        users(query: String): [User!]!
+        posts(query: String): [Post!]!
+        comments(query: String): [Comment!]!
         me: User!
         post: Post!
-        grades: [Int!]
     }
 
     type User {
@@ -21,6 +74,8 @@ const typeDefs = `
         name: String!
         email: String!
         age: Int
+        posts: [Post!]!
+        comments: [Comment!]!
     }
 
     type Post {
@@ -28,45 +83,27 @@ const typeDefs = `
         title: String!
         body: String
         published: Boolean
+        author: User!
+        comments: [Comment]!
+    }
+    type Comment {
+        id: ID!
+        text: String!
+        author: User!
+        post: Post!
     }
 `
 // Resolvers
 const resolvers = {
     Query: {
-        add(parent, args){
-            return args.a + args.b
-        },
-        addAll(parent,args){
-            if(args.numbers.length == ''){
-                return 0
-            }
+       users(parent, args){
+           if(!args.query){
+               return users
+           }
 
-            // [1,5,10,2]
-            return args.numbers.reduce( (accumulator, currentValue) => {
-                return accumulator + currentValue
-            })
-        },
-        greeting(parent,args,ctx,info){
-            if(args.name){
-                return `Hello + ${args.name}`
-            }else{
-                return 'Hello User'
-            }
-        },
-       id(){
-        return 'abc123'
-       },
-       name(){
-        return 'Ahmad Khoja'
-       },
-       age(){
-        return 27
-       },
-       employed(){
-        return true
-       },
-       gpa(){
-        return null
+           return users.filter( (user) => {
+                return user.name.toLowerCase().includes(args.query.toLowerCase())
+           })
        },
        me(){
            return {
@@ -76,6 +113,17 @@ const resolvers = {
                age: null
            }
        },
+       posts(parent,args){
+           if(!args.query){
+               return posts
+           }
+
+           return posts.filter( (post) => {
+               const isTitle = post.title.toLowerCase().includes(args.query.toLowerCase())
+               const isBody = post.body.toLowerCase().includes(args.query.toLowerCase())
+                return isTitle || isBody
+           })
+        },
        post(){
            return {
             id: 'post123',
@@ -84,9 +132,50 @@ const resolvers = {
             published: null
            }
        },
-       grades(){
-           return [1,2,3,4,5,6]
+       comments(parent, args){
+        if(!args.query){
+            return comments
+        }
+        return comments.filter( (comment) => {
+            return comment.text.toLowerCase().includes(args.query.toLowerCase())
+        })
        }
+     },
+     Post:{
+         author(parent,args,ctx,info){
+            return users.find( (user) => {
+                return user.id === parent.author
+            }) 
+         },
+         comments(parent){
+            return comments.filter( (comment) => {
+                return comment.post === parent.id
+            }) 
+         }
+     },
+     User: {
+         posts(parent,args,ctx,info){
+            return posts.filter( (post) => {
+                return post.author == parent.id
+            })
+         },
+         comments(parent){
+            return comments.filter( (comment) => {
+                return comment.author == parent.id
+            })
+         }
+     },
+     Comment: {
+         author(parent){
+            return users.find( (user) => {
+                return user.id == parent.author
+            })
+         },
+         post(parent){
+            return posts.find( (post) => {
+                return post.id == parent.post
+            })
+         }
      }
 }
 
