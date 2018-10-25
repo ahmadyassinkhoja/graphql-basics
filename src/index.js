@@ -1,6 +1,10 @@
 import { GraphQLServer } from 'graphql-yoga'
 
-const users = [
+let ids = 3
+let post_ids = 3
+let comment_ids = 4
+
+let users = [
     {
         id: '1',
         name: 'Ahmad Khoja',
@@ -18,7 +22,7 @@ const users = [
         comments:'2'
     }
 ]
-const posts = [
+let posts = [
     {
         id: 'post1',
         title: 'First Post',
@@ -37,7 +41,7 @@ const posts = [
     }
 ]
 
-const comments = [
+let comments = [
     {
         id: '1',
         text: 'Thanks Teacher',
@@ -67,6 +71,19 @@ const typeDefs = `
         comments(query: String): [Comment!]!
         me: User!
         post: Post!
+    }
+    
+    type Mutation {
+        createUser(data: CreateUserInput) : User!
+        deleteUser(id: ID!) : User!
+        createPost(title: String!,body: String!, published: Boolean, author: ID!) : Post!
+        createComment(text: String!, author: ID!, post: ID!) : Comment!
+    }
+
+    input CreateUserInput {
+        name: String!, 
+        email: String!, 
+        age: Int
     }
 
     type User {
@@ -176,7 +193,73 @@ const resolvers = {
                 return post.id == parent.post
             })
          }
-     }
+     },
+     Mutation: {
+        createUser(parent, args, ctx, info){
+            const emailTaken = users.some( (user) => {
+                return user.email === args.email
+            })
+
+            if(args.name == '' || args.email == '' ){
+                throw new Error(' no name or no email provided')
+            }
+            if(emailTaken){
+                throw new Error('email taken')
+            }
+            let newUser = {
+                id: ids++,
+                name: args.name,
+                email: args.email,
+                age: args.age
+            }
+            users.push(newUser)
+            return newUser
+        },
+        deleteUser(parent,args){
+            const userIndex = users.findIndex( (user) => user.id == args.id)
+            if(userIndex<0){
+                throw new Error('no user to delete')
+            }
+
+            posts = posts.filter( (post) => {
+                const match = post.author == args.id
+                if(match){
+                    comments = comments.filter( (comment) => comment.post !== post.id
+                    )
+                } 
+                return !match
+            })
+            comments = comments.filter( (comment) => comment.author !== args.id)
+
+            const deletedUsers = users.splice(userIndex, 1)
+            return deletedUsers[0]
+        },
+        createPost(parent, args){
+            // const userExists = users.some( (user) => user.id == args.author)
+            // if(userExists){
+            //     throw new Error('user exists')
+            // }
+            let newPost = {
+                id: 'post' + post_ids++,
+                title: args.title,
+                body: args.body,
+                published: args.published,
+                author: args.author
+            }
+            posts.push(newPost)
+            return newPost
+        },
+        createComment(parent, args){
+            let newComment = {
+                id: comment_ids++,
+                text: args.text,
+                author: args.author,
+                post: args.post,
+            }
+            comments.push(newComment)
+            return newComment
+        }
+    },
 }
 
 const server = new GraphQLServer({
